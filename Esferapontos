@@ -24,7 +24,7 @@ def PontoEsfera():
         glVertex3fv(ponto)
     glEnd()
 
-def abacaxi():
+def Esfera():
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
     glRotatef(1,1,1,0)
     PontoEsfera()
@@ -38,8 +38,8 @@ def timer(i):
 glutInit(sys.argv)
 glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_MULTISAMPLE)
 glutInitWindowSize(800,600)
-glutCreateWindow("POR FAVOR FUNCIONA")
-glutDisplayFunc(abacaxi)
+glutCreateWindow("Esfera de pontos")
+glutDisplayFunc(Esfera)
 glEnable(GL_MULTISAMPLE)
 glEnable(GL_DEPTH_TEST)
 glClearColor(0.,0.,0.,1.)
