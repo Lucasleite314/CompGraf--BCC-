@@ -1,48 +1,52 @@
+//Colocar no visual studio e salvar como.py e rodar junto com o projection (nao conseguir enviar em formato do arquivo)
+//Trabalho em conjunto com Rodrigo Campos, Victor Abrantes, Lucas Flores
+
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+from sys import stdout
 from random import randrange
 from matplotlib import widgets
 from projection import Quaternion, project_points
 
 """
-Representacao do Adesivo de Cubo
+Sticker representation
 ----------------------
-Cada face e representada pelo tamanho  do array [5, 3]:
+Each face is represented by a length [5, 3] array:
 
   [v1, v2, v3, v4, v1]
 
-Cada adesivo e representado pelo array de tamanho [9, 3]:
+Each sticker is represented by a length [9, 3] array:
 
   [v1a, v1b, v2a, v2b, v3a, v3b, v4a, v4b, v1a]
 
-Em ambos os casos, o primeiro ponto e repetido para fechar o poligono
+In both cases, the first point is repeated to close the polygon.
 
-Cada face também possui  um centroide, com o numero de faces anexado
-ao fim para que seja possivel embaralhar corretamente usando o lexsort
-O centroide equivale a sum_i[vi]
+Each face also has a centroid, with the face number appended
+at the end in order to sort correctly using lexsort.
+The centroid is equal to sum_i[vi].
 
-Cores sao contabilizadas para usar indices de cor e uma tabela pesquisa. 
+Colors are accounted for using color indices and a look-up table.
 
-Com todas as faces em um cubo NxNxN, então, temos tres arrays:
+With all faces in an NxNxN cube, then, we have three arrays:
 
   centroids.shape = (6 * N * N, 4)
   faces.shape = (6 * N * N, 5, 3)
   stickers.shape = (6 * N * N, 9, 3)
   colors.shape = (6 * N * N,)
 
-A ordem canonica e encontrada fazendo
-
+The canonical order is found by doing
 
   ind = np.lexsort(centroids.T)
 
-Depois de qualquer rotacao, isso pode ser usado para restaurar
-rapidamente o cubo para sua posição original
+After any rotation, this can be used to quickly restore the cube to
+canonical position.
 """
 lista = []
 
 class Cube:
-    """Representacao do Cubo Magico"""
-    # define alguns atributos
+    """Magic Cube Representation"""
+    # define some attribues
     default_plastic_color = 'black'
     default_face_colors = ["w", "#00ff80",
                            "#ff007f", "#007fff",
@@ -68,14 +72,14 @@ class Cube:
     base_face_centroid = np.array([[0, 0, 1]])
     base_sticker_centroid = np.array([[0, 0, 1 + stickerthickness]])
 
-    # Define a rotacao dos angulos e eixos para os 6 lados do cubo
+    # Define rotation angles and axes for the six sides of the cube
     x, y, z = np.eye(3)
     rots = [Quaternion.from_v_theta(np.eye(3)[0], theta)
     for theta in (np.pi / 2, -np.pi / 2)]
     rots += [Quaternion.from_v_theta(np.eye(3)[1], theta)
     for theta in (np.pi / 2, -np.pi / 2, np.pi, 2 * np.pi)]
 
-    # define os movimentos das faces
+    # define face movements
     facesdict = dict(F=z, B=-z,
                      R=x, L=-x,
                      U=y, D=-y)
@@ -96,17 +100,17 @@ class Cube:
         self._initialize_arrays()
 
     def _initialize_arrays(self):
-        # Inicializa os centroides, faces e adesivos do cubo.Comecamos com uma
-        # base para cada um, e entao transladamos e rotacionamos na posicao. 
+        # initialize centroids, faces, and stickers.  We start with a
+        # base for each one, and then translate & rotate them into position.
 
-        # Define N^2 translacoes para cada face do cubo
+        # Define N^2 translations for each face of the cube
         cubie_width = 2. / self.N
         translations = np.array([[[-1 + (i + 0.5) * cubie_width,
                                    -1 + (j + 0.5) * cubie_width, 0]]
                                  for i in range(self.N)
                                  for j in range(self.N)])
 
-        #  Cria arrays para os centroides, faces, adesivos e cores
+        # Create arrays for centroids, faces, stickers, and colors
         face_centroids = []
         faces = []
         sticker_centroids = []
@@ -127,7 +131,7 @@ class Cube:
                                          + translations, M.T)
             colors_i = i + np.zeros(face_centroids_t.shape[0], dtype=int)
 
-            # Anexa o id da face a face do centroide para o embaralhamento
+            # append face ID to the face centroids for lex-sorting
             face_centroids_t = np.hstack([face_centroids_t.reshape(-1, 3),
                                           colors_i[:, None]])
             sticker_centroids_t = sticker_centroids_t.reshape((-1, 3))
@@ -147,7 +151,7 @@ class Cube:
         self._sort_faces()
 
     def _sort_faces(self):
-        # Use o embaralhamento(lexsort)  nos centroides para colocar as faces na ordem original
+        # use lexsort on the centroids to put faces in a standard order.
         ind = np.lexsort(self._face_centroids.T)
         self._face_centroids = self._face_centroids[ind]
         self._sticker_centroids = self._sticker_centroids[ind]
@@ -156,9 +160,9 @@ class Cube:
         self._faces = self._faces[ind]
 
     def rotate_face(self, f, n=1, layer=0):
-        """Rotacao da face"""
+        """Rotate Face"""
         if layer < 0 or layer >= self.N:
-            raise ValueError('camada deve estar entre  0 e N-1')
+            raise ValueError('layer should be between 0 and N-1')
 
         try:
             f_last, n_last, layer_last = self._move_list[-1]
@@ -189,7 +193,7 @@ class Cube:
                   self._faces]:
             x[flag] = np.dot(x[flag], M.T)
         self._face_centroids[flag, :3] = np.dot(self._face_centroids[flag, :3],
-                                                M.T)
+                                         M.T)
 
     def draw_interactive(self):
         fig = plt.figure(figsize=(5, 5))
@@ -203,6 +207,7 @@ class InteractiveCube(plt.Axes):
                  view=(0, 0, 10),
                  fig=None, rect=[0, 0.16, 1, 0.84],
                  **kwargs):
+        self.cont = 0
         if cube is None:
             self.cube = Cube(3)
         elif isinstance(cube, Cube):
@@ -217,11 +222,11 @@ class InteractiveCube(plt.Axes):
         if fig is None:
             fig = plt.gcf()
 
-        # Desabilita eventos de pressionar teclas
+        # disable default key press events
         callbacks = fig.canvas.callbacks.callbacks
         del callbacks['key_press_event']
 
-        #  Adicionar alguns padroes e desenha eixos
+        # add some defaults, and draw axes
         kwargs.update(dict(aspect=kwargs.get('aspect', 'equal'),
                            xlim=kwargs.get('xlim', (-2.0, 2.0)),
                            ylim=kwargs.get('ylim', (-2.0, 2.0)),
@@ -235,31 +240,31 @@ class InteractiveCube(plt.Axes):
         self._start_xlim = kwargs['xlim']
         self._start_ylim = kwargs['ylim']
 
-        # Define o movimento cima/baixo do mouse e teclado
+        # Define movement for up/down arrows or up/down mouse movement
         self._ax_UD = (1, 0, 0)
         self._step_UD = 0.01
 
-        # Define o movimento de esquerda/direita do mouse e teclado
+        # Define movement for left/right arrows or left/right mouse movement
         self._ax_LR = (0, -1, 0)
         self._step_LR = 0.01
 
         self._ax_LR_alt = (0, 0, 1)
 
-        # Variavel de estado interno
-        self._active = False  #  Verdade quando o mouse estiver sobre os eixos
-        self._button1 = False  # Verdadeiro quando o botão 1 é pressionado
-        self._button2 = False  # Verdadeiro quando o botão 2 é pressionado
-        self._event_xy = None  # Armazena a posição xy de um evento do mouse
-        self._shift = False  # tecla SHIFT pressionada 
-        self._digit_flags = np.zeros(10, dtype=bool)  # digitos 0-9 pressionados
+        # Internal state variable
+        self._active = False  # true when mouse is over axes
+        self._button1 = False  # true when button 1 is pressed
+        self._button2 = False  # true when button 2 is pressed
+        self._event_xy = None  # store xy position of mouse event
+        self._shift = False  # shift key pressed
+        self._digit_flags = np.zeros(10, dtype=bool)  # digits 0-9 pressed
 
-        self._current_rot = self._start_rot  #Atual estado de rotacao
+        self._current_rot = self._start_rot  #current rotation state
         self._face_polys = None
         self._sticker_polys = None
 
         self._draw_cube()
 
-        # Conecta alguns eventos da GUI 
+        # connect some GUI events
         self.figure.canvas.mpl_connect('button_press_event',
                                        self._mouse_press)
         self.figure.canvas.mpl_connect('button_release_event',
@@ -273,12 +278,15 @@ class InteractiveCube(plt.Axes):
 
         self._initialize_widgets()
 
-        # escrever algumas instrucoes
+        # write some instructions
+
         self.figure.text(0.05, 0.05,
-                         "Mouse/setas para andar pelo cubo\n"
+                         "\nMouse/setas para andar pelo cubo\n"
                          "U/D/L/R/B/F para movimentos\n"
                          "(segure SHIFT para anti-horario)",
                          size=10)
+
+      
 
     def _initialize_widgets(self):
         self._ax_reset = self.figure.add_axes([0.75, 0.05, 0.2, 0.075])
@@ -293,6 +301,7 @@ class InteractiveCube(plt.Axes):
         return project_points(pts, self._current_rot, self._view, [0, 1, 0])
 
     def _draw_cube(self):
+
         stickers = self._project(self.cube._stickers)[:, :, :2]
         faces = self._project(self.cube._faces)[:, :, :2]
         face_centroids = self._project(self.cube._face_centroids[:, :3])
@@ -303,8 +312,9 @@ class InteractiveCube(plt.Axes):
         face_zorders = -face_centroids[:, 2]
         sticker_zorders = -sticker_centroids[:, 2]
 
+
         if self._face_polys is None:
-            # chamada inicial : cria os objetos dos poligonos e adiciona eixos 
+            # initial call: create polygon objects and add to axes
             self._face_polys = []
             self._sticker_polys = []
 
@@ -319,7 +329,7 @@ class InteractiveCube(plt.Axes):
                 self.add_patch(fp)
                 self.add_patch(sp)
         else:
-            # Chamada seguinte: atualiza os objetos dos poligonos
+            # subsequent call: update the polygon objects
             for i in range(len(colors)):
                 self._face_polys[i].set_xy(faces[i])
                 self._face_polys[i].set_zorder(face_zorders[i])
@@ -328,13 +338,14 @@ class InteractiveCube(plt.Axes):
                 self._sticker_polys[i].set_xy(stickers[i])
                 self._sticker_polys[i].set_zorder(sticker_zorders[i])
                 self._sticker_polys[i].set_facecolor(colors[i])
-
         self.figure.canvas.draw()
 
     def rotate(self, rot):
         self._current_rot = self._current_rot * rot
 
     def rotate_face(self, face, turns=1, layer=0, steps=5):
+        self.cont += 1
+        print("Movimento: " + str(self.cont))
         if not np.allclose(turns, 0):
             for i in range(steps):
                 self.cube.rotate_face(face, turns * 1. / steps,
@@ -342,6 +353,7 @@ class InteractiveCube(plt.Axes):
                 self._draw_cube()
 
     def _reset_view(self, *args):
+        self.cont = 0
         self.set_xlim(self._start_xlim)
         self.set_ylim(self._start_ylim)
         self._current_rot = self._start_rot
@@ -357,7 +369,7 @@ class InteractiveCube(plt.Axes):
         self.cube._move_list = []
 
     def _key_press(self, event):
-        """Operador para eventos de pressionar tecla"""
+        """Handler for key press events"""
         if event.key == 'shift':
             self._shift = True
         elif event.key.isdigit():
@@ -397,14 +409,14 @@ class InteractiveCube(plt.Axes):
         self._draw_cube()
 
     def _key_release(self, event):
-        """Operador para eventos de liberar tecla"""
+        """Handler for key release event"""
         if event.key == 'shift':
             self._shift = False
         elif event.key.isdigit():
             self._digit_flags[int(event.key)] = 0
 
     def _mouse_press(self, event):
-        """Operador para pressionar botao do mouse"""
+        """Handler for mouse button press"""
         self._event_xy = (event.x, event.y)
         if event.button == 1:
             self._button1 = True
@@ -412,7 +424,7 @@ class InteractiveCube(plt.Axes):
             self._button2 = True
 
     def _mouse_release(self, event):
-        """Operador para liberar botao do mouse"""
+        """Handler for mouse button release"""
         self._event_xy = None
         if event.button == 1:
             self._button1 = False
@@ -420,7 +432,7 @@ class InteractiveCube(plt.Axes):
             self._button2 = False
 
     def _mouse_motion(self, event):
-        """Operador para controle do mouse"""
+        """Handler for mouse motion"""
         if self._button1 or self._button2:
             dx = event.x - self._event_xy[0]
             dy = event.y - self._event_xy[1]
@@ -468,16 +480,6 @@ if __name__ == '__main__':
 
     for i in lista:
         c.rotate_face(i)
-
-    # do a 3-corner swap
-    #c.rotate_face('R')
-    #c.rotate_face('D')
-    #c.rotate_face('R', -1)
-    #c.rotate_face('U', -1)
-    #c.rotate_face('R')
-    #c.rotate_face('D', -1)
-    #c.rotate_face('R', -1)
-    #c.rotate_face('U')
 
     c.draw_interactive()
 
