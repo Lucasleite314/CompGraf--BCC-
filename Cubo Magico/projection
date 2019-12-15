@@ -1,3 +1,7 @@
+/Colocar no visual studio e salvar como.py e rodar junto com o projection (nao conseguir enviar em formato do arquivo)
+//Trabalho em conjunto com Rodrigo Campos, Victor Abrantes, Lucas Flores
+
+
 import numpy as np
 
 class Quaternion:
